@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+langgraph
+langchain
+langchain-ollama
+langchain-community
+redis
+asyncpg
+sqlalchemy[asyncio]
+pydantic-settings
+httpx
+python-dotenv
+sse-starlette

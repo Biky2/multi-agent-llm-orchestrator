@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentFlow — Multi-Agent AI Orchestration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --card-border: #2a2a2a;
+      --text: #f5f5f5;
+      --text-muted: #9ca3af;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --blue: #3b82f6;
+      --planner: #eab308;
+      --executor: #22c55e;
+      --validator: #6366f1;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 32px;
+      gap: 16px;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon { width: 36px; height: 36px; }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 2px;
+    }
+
+    .health-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    .health-dot.degraded { background: var(--red); }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    /* Task input */
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 14px;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    textarea::placeholder { color: #6b7280; }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      align-items: center;
+    }
+
+    .session-input {
+      flex: 1;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.875rem;
+    }
+
+    .session-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn-submit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Pipeline */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      transition: color 0.3s;
+    }
+
+    .pipeline-arrow.active {
+      color: var(--accent);
+      animation: flow 1s ease-in-out infinite;
+    }
+
+    @keyframes flow {
+      0%, 100% { opacity: 0.4; transform: translateX(0); }
+      50% { opacity: 1; transform: translateX(3px); }
+    }
+
+    .agent-card {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+      min-width: 140px;
+      flex: 1;
+      max-width: 200px;
+      text-align: center;
+      transition: box-shadow 0.3s, border-color 0.3s;
+    }
+
+    .agent-card.running {
+      border-color: var(--accent);
+      animation: glow 1.5s ease-in-out infinite;
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+      50% { box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.25); }
+    }
+
+    .agent-icon {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 8px;
+      color: var(--accent);
+    }
+
+    .agent-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: #374151;
+      color: var(--text-muted);
+    }
+
+    .badge.running {
+      background: rgba(99, 102, 241, 0.2);
+      color: var(--accent);
+      animation: pulse-badge 1.2s ease-in-out infinite;
+    }
+
+    .badge.done {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--green);
+    }
+
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .view-output {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--accent);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+    }
+
+    .view-output:hover { text-decoration: underline; }
+
+    .agent-output {
+      margin-top: 10px;
+      text-align: left;
+      display: none;
+    }
+
+    .agent-output.visible { display: block; }
+
+    .agent-output pre {
+      background: #111;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 0.7rem;
+      overflow-x: auto;
+      max-height: 200px;
+      color: #d1d5db;
+    }
+
+    /* Live feed */
+    .feed-log {
+      background: #111;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 14px;
+      height: 220px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.8rem;
+    }
+
+    .feed-line {
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .feed-time { color: #6b7280; }
+    .feed-agent-researcher { color: var(--blue); font-weight: 600; }
+    .feed-agent-planner { color: var(--planner); font-weight: 600; }
+    .feed-agent-executor { color: var(--executor); font-weight: 600; }
+    .feed-agent-validator { color: var(--validator); font-weight: 600; }
+    .feed-agent-system { color: #9ca3af; font-weight: 600; }
+
+    /* Final result */
+    .confidence-bar-wrap {
+      margin-bottom: 16px;
+    }
+
+    .confidence-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .confidence-bar {
+      height: 8px;
+      background: #374151;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .confidence-fill.low { background: var(--red); }
+    .confidence-fill.mid { background: var(--yellow); }
+    .confidence-fill.high { background: var(--green); }
+
+    .final-prose {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 20px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .btn-secondary {
+      padding: 10px 18px;
+      background: transparent;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: var(--accent); }
+
+    /* History */
+    .history-toggle {
+      width: 100%;
+      padding: 14px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      margin-bottom: 12px;
+    }
+
+    .history-toggle:hover { border-color: var(--accent); }
+
+    .history-content {
+      display: none;
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .history-content.visible { display: block; }
+
+    .history-item {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .history-item:last-child { border-bottom: none; }
+
+    .history-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      background: var(--red);
+      color: white;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+      max-width: 360px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 768px) {
+      header { flex-direction: column; }
+      .pipeline { flex-direction: column; }
+      .pipeline-arrow { transform: rotate(90deg); }
+      .agent-card { max-width: 100%; }
+      .input-row { flex-direction: column; }
+      .btn-submit { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <div class="logo-row">
+          <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="18" r="16" stroke="#6366f1" stroke-width="2"/>
+            <circle cx="10" cy="14" r="3" fill="#6366f1"/>
+            <circle cx="26" cy="14" r="3" fill="#6366f1"/>
+            <circle cx="18" cy="26" r="3" fill="#818cf8"/>
+            <line x1="10" y1="14" x2="18" y2="26" stroke="#6366f1" stroke-width="1.5"/>
+            <line x1="26" y1="14" x2="18" y2="26" stroke="#6366f1" stroke-width="1.5"/>
+            <line x1="10" y1="14" x2="26" y2="14" stroke="#6366f1" stroke-width="1.5"/>
+          </svg>
+          <h1>AgentFlow</h1>
+        </div>
+        <p class="subtitle">Multi-Agent AI Orchestration</p>
+      </div>
+      <div class="health-pill" id="healthPill">
+        <span class="health-dot" id="healthDot"></span>
+        <span id="healthText">Checking...</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <textarea id="taskInput" placeholder="Describe a complex task for the agents to complete..."></textarea>
+      <div class="input-row">
+        <input type="text" class="session-input" id="sessionInput"
+               placeholder="Session ID (optional — leave blank to start new)">
+        <button class="btn-submit" id="submitBtn" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="playIcon">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span id="submitLabel">Run Agents</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="pipelineCard">
+      <div class="card-title">Agent Pipeline</div>
+      <div class="pipeline" id="pipeline">
+        <div class="agent-card" data-agent="researcher">
+          <svg class="agent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <div class="agent-name">Researcher</div>
+          <span class="badge" data-status>Waiting</span>
+          <button class="view-output" type="button">View Output</button>
+          <div class="agent-output"><pre></pre></div>
+        </div>
+        <span class="pipeline-arrow" data-arrow="0">→</span>
+        <div class="agent-card" data-agent="planner">
+          <svg class="agent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+          </svg>
+          <div class="agent-name">Planner</div>
+          <span class="badge" data-status>Waiting</span>
+          <button class="view-output" type="button">View Output</button>
+          <div class="agent-output"><pre></pre></div>
+        </div>
+        <span class="pipeline-arrow" data-arrow="1">→</span>
+        <div class="agent-card" data-agent="executor">
+          <svg class="agent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+          </svg>
+          <div class="agent-name">Executor</div>
+          <span class="badge" data-status>Waiting</span>
+          <button class="view-output" type="button">View Output</button>
+          <div class="agent-output"><pre></pre></div>
+        </div>
+        <span class="pipeline-arrow" data-arrow="2">→</span>
+        <div class="agent-card" data-agent="validator">
+          <svg class="agent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <div class="agent-name">Validator</div>
+          <span class="badge" data-status>Waiting</span>
+          <button class="view-output" type="button">View Output</button>
+          <div class="agent-output"><pre></pre></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="feedCard">
+      <div class="card-title">Live Agent Feed</div>
+      <div class="feed-log" id="feedLog"></div>
+    </div>
+
+    <div class="card hidden" id="resultCard">
+      <div class="card-title">Final Output</div>
+      <div class="confidence-bar-wrap">
+        <div class="confidence-label">Confidence: <span id="confidenceValue">0%</span></div>
+        <div class="confidence-bar">
+          <div class="confidence-fill" id="confidenceFill" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="final-prose" id="finalOutput"></div>
+      <div class="result-actions">
+        <button class="btn-secondary" id="copyBtn" type="button">Copy to Clipboard</button>
+        <button class="btn-secondary" id="resetBtn" type="button">Run Another Task</button>
+      </div>
+    </div>
+
+    <button class="history-toggle" id="historyToggle" type="button">View Session History ▾</button>
+    <div class="history-content" id="historyContent"></div>
+  </div>
+
+  <script>
+    let currentSessionId = null;
+    let eventSource = null;
+
+    const taskInput = document.getElementById('taskInput');
+    const sessionInput = document.getElementById('sessionInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitLabel = document.getElementById('submitLabel');
+    const playIcon = document.getElementById('playIcon');
+    const pipelineCard = document.getElementById('pipelineCard');
+    const feedCard = document.getElementById('feedCard');
+    const resultCard = document.getElementById('resultCard');
+    const feedLog = document.getElementById('feedLog');
+    const finalOutputEl = document.getElementById('finalOutput');
+    const confidenceValue = document.getElementById('confidenceValue');
+    const confidenceFill = document.getElementById('confidenceFill');
+    const healthDot = document.getElementById('healthDot');
+    const healthText = document.getElementById('healthText');
+    const historyToggle = document.getElementById('historyToggle');
+    const historyContent = document.getElementById('historyContent');
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    }
+
+    function formatTime() {
+      const d = new Date();
+      return d.toTimeString().slice(0, 8);
+    }
+
+    function appendFeed(agent, status, summary) {
+      const line = document.createElement('div');
+      line.className = 'feed-line';
+      const agentClass = `feed-agent-${agent}`;
+      line.innerHTML = `<span class="feed-time">[${formatTime()}]</span> <span class="${agentClass}">${agent}</span> — ${status}: ${summary}`;
+      feedLog.appendChild(line);
+      feedLog.scrollTop = feedLog.scrollHeight;
+    }
+
+    function setAgentStatus(agent, status, output) {
+      const card = document.querySelector(`[data-agent="${agent}"]`);
+      if (!card) return;
+      const badge = card.querySelector('[data-status]');
+      badge.textContent = status === 'running' ? 'Running...' : status === 'done' ? 'Done' : 'Waiting';
+      badge.className = 'badge' + (status === 'running' ? ' running' : status === 'done' ? ' done' : '');
+
+      card.classList.toggle('running', status === 'running');
+
+      if (output) {
+        const pre = card.querySelector('.agent-output pre');
+        pre.textContent = JSON.stringify(output, null, 2);
+      }
+
+      const arrows = document.querySelectorAll('.pipeline-arrow');
+      const order = ['researcher', 'planner', 'executor', 'validator'];
+      const idx = order.indexOf(agent);
+      arrows.forEach((arrow, i) => {
+        arrow.classList.toggle('active', status === 'running' && i === idx);
+      });
+    }
+
+    document.querySelectorAll('.view-output').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const output = btn.parentElement.querySelector('.agent-output');
+        output.classList.toggle('visible');
+      });
+    });
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        const ok = data.redis === 'ok' && data.postgres === 'ok';
+        healthDot.classList.toggle('degraded', !ok);
+        healthText.textContent = ok ? 'All Systems Online' : 'Degraded';
+      } catch {
+        healthDot.classList.add('degraded');
+        healthText.textContent = 'Degraded';
+      }
+    }
+
+    checkHealth();
+    setInterval(checkHealth, 30000);
+
+    async function loadHistory() {
+      if (!currentSessionId) {
+        historyContent.innerHTML = '<p class="history-meta">No session yet.</p>';
+        return;
+      }
+      try {
+        const res = await fetch(`/history/${currentSessionId}`);
+        if (!res.ok) {
+          historyContent.innerHTML = '<p class="history-meta">No history found for this session.</p>';
+          return;
+        }
+        const data = await res.json();
+        historyContent.innerHTML = `
+          <div class="history-item">
+            <strong>${data.user_task || 'Task'}</strong>
+            <div class="history-meta">
+              ${data.created_at || 'Unknown time'} · Confidence: ${(data.confidence_score * 100).toFixed(0)}% ·
+              ${data.completed ? 'Completed' : 'In progress'}
+            </div>
+          </div>`;
+      } catch {
+        historyContent.innerHTML = '<p class="history-meta">Failed to load history.</p>';
+      }
+    }
+
+    historyToggle.addEventListener('click', () => {
+      historyContent.classList.toggle('visible');
+      if (historyContent.classList.contains('visible')) loadHistory();
+    });
+
+    function resetUI() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      currentSessionId = null;
+      taskInput.value = '';
+      sessionInput.value = '';
+      taskInput.disabled = false;
+      sessionInput.disabled = false;
+      submitBtn.disabled = false;
+      submitLabel.textContent = 'Run Agents';
+      playIcon.style.display = 'block';
+      const spinner = submitBtn.querySelector('.spinner');
+      if (spinner) spinner.remove();
+
+      pipelineCard.classList.add('hidden');
+      feedCard.classList.add('hidden');
+      resultCard.classList.add('hidden');
+      feedLog.innerHTML = '';
+
+      ['researcher', 'planner', 'executor', 'validator'].forEach(agent => {
+        setAgentStatus(agent, 'waiting');
+        const card = document.querySelector(`[data-agent="${agent}"]`);
+        card.querySelector('.agent-output').classList.remove('visible');
+        card.querySelector('.agent-output pre').textContent = '';
+      });
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', resetUI);
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(finalOutputEl.textContent);
+        showToast('Copied to clipboard!');
+      } catch {
+        showToast('Failed to copy.');
+      }
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      const task = taskInput.value.trim();
+      if (!task) {
+        showToast('Please enter a task.');
+        return;
+      }
+
+      taskInput.disabled = true;
+      sessionInput.disabled = true;
+      submitBtn.disabled = true;
+      submitLabel.textContent = 'Running...';
+      playIcon.style.display = 'none';
+      const spinner = document.createElement('div');
+      spinner.className = 'spinner';
+      submitBtn.insertBefore(spinner, submitLabel);
+
+      pipelineCard.classList.remove('hidden');
+      feedCard.classList.remove('hidden');
+      resultCard.classList.add('hidden');
+      feedLog.innerHTML = '';
+
+      const body = { task };
+      const sid = sessionInput.value.trim();
+      if (sid) body.session_id = sid;
+
+      try {
+        const res = await fetch('/task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error('Failed to submit task');
+
+        const data = await res.json();
+        currentSessionId = data.session_id;
+
+        eventSource = new EventSource(data.stream_url);
+
+        eventSource.onmessage = (event) => {
+          const payload = JSON.parse(event.data);
+          const agent = payload.agent;
+          const status = payload.status;
+
+          if (agent === 'system' && status === 'started') {
+            appendFeed('system', 'started', `Pipeline started for session ${payload.session_id}`);
+            return;
+          }
+
+          if (status === 'running') {
+            setAgentStatus(agent, 'running');
+            appendFeed(agent, 'running', 'Agent is working...');
+            return;
+          }
+
+          if (status === 'done') {
+            setAgentStatus(agent, 'done', payload.output);
+            const summary = JSON.stringify(payload.output).slice(0, 80) + '...';
+            appendFeed(agent, 'done', summary);
+            return;
+          }
+
+          if (status === 'complete') {
+            setAgentStatus('validator', 'done', {
+              final_output: payload.final_output,
+              confidence_score: payload.confidence_score,
+            });
+            appendFeed('validator', 'complete', `Confidence ${(payload.confidence_score * 100).toFixed(0)}% · ${payload.latency_ms}ms`);
+
+            const score = payload.confidence_score;
+            confidenceValue.textContent = `${(score * 100).toFixed(0)}%`;
+            confidenceFill.style.width = `${score * 100}%`;
+            confidenceFill.className = 'confidence-fill ' + (score < 0.6 ? 'low' : score < 0.8 ? 'mid' : 'high');
+            finalOutputEl.textContent = payload.final_output;
+            resultCard.classList.remove('hidden');
+
+            eventSource.close();
+            eventSource = null;
+
+            submitBtn.disabled = false;
+            submitLabel.textContent = 'Run Agents';
+            playIcon.style.display = 'block';
+            spinner.remove();
+            return;
+          }
+
+          if (status === 'error') {
+            showToast(payload.message || 'Pipeline error');
+            eventSource.close();
+            resetUI();
+          }
+        };
+
+        eventSource.onerror = () => {
+          showToast('Stream connection lost.');
+          if (eventSource) eventSource.close();
+        };
+      } catch (err) {
+        showToast(err.message || 'Submission failed');
+        resetUI();
+      }
+    });
+  </script>
+</body>
+</html>
